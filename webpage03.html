@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Task Logger</title>
+    <style>
+        button { margin: 5px; padding: 10px; font-size: 16px; }
+        .selected { background-color: lightblue; }
+    </style>
+    <script>
+        let hierarchy = {
+            "Engagement 1": {
+                "Category 1": ["Task 1", "Task 2", "Task 3"],
+                "Category 2": ["Task 4", "Task 5", "Task 6"],
+                "Category 3": ["Task 7", "Task 8", "Task 9", "Task 10"]
+            },
+            "Engagement 2": {
+                "Category 4": ["Task 1", "Task 2", "Task 3"],
+                "Category 5": ["Task 4", "Task 5", "Task 6"],
+                "Category 6": ["Task 7", "Task 8", "Task 9", "Task 10"]
+            },
+            "Engagement 3": {
+                "Category 7": ["Task 1", "Task 2", "Task 3"],
+                "Category 8": ["Task 4", "Task 5", "Task 6"],
+                "Category 9": ["Task 7", "Task 8", "Task 9", "Task 10"]
+            }
+        };
+
+        let logHistory = [];
+        let selectedEngagement = null;
+        let selectedCategory = null;
+        let selectedTask = null;
+
+        function logTask() {
+            let timestamp = new Date().toISOString();
+            let logEntry = { timestamp };
+            if (selectedEngagement) logEntry.engagement = selectedEngagement;
+            if (selectedCategory) logEntry.category = selectedCategory;
+            if (selectedTask) logEntry.task = selectedTask;
+            logHistory.push(logEntry);
+            localStorage.setItem("taskLogs", JSON.stringify(logHistory));
+            updateLogDisplay();
+        }
+
+        function updateLogDisplay() {
+            let logDiv = document.getElementById("log");
+            logDiv.innerHTML = logHistory
+                .map(entry => `<p>${entry.timestamp}, ${entry.engagement || ""}, ${entry.category || ""}, ${entry.task || ""}</p>`)
+                .reverse()
+                .join("");
+        }
+
+        function downloadLogs() {
+            let logs = logHistory.map(entry => `${entry.timestamp}, ${entry.engagement || ""}, ${entry.category || ""}, ${entry.task || ""}\n`).join("");
+            let blob = new Blob([logs], { type: "text/csv" });
+            let a = document.createElement("a");
+            a.href = URL.createObjectURL(blob);
+            a.download = "task_log.csv";
+            a.click();
+        }
+
+        function undoLastLog() {
+            if (logHistory.length > 0) {
+                logHistory.pop();
+                localStorage.setItem("taskLogs", JSON.stringify(logHistory));
+                updateLogDisplay();
+            }
+        }
+
+        function selectEngagement(engagement) {
+            if (selectedEngagement !== engagement) {
+                selectedEngagement = engagement;
+                selectedCategory = null;
+                selectedTask = null;
+                logTask();
+                renderCategories();
+                document.getElementById("tasks").innerHTML = "";
+            }
+            highlightSelection();
+        }
+
+        function selectCategory(category) {
+            if (selectedCategory !== category) {
+                selectedCategory = category;
+                selectedTask = null;
+                logTask();
+                renderTasks();
+            }
+            highlightSelection();
+        }
+
+        function selectTask(task) {
+            selectedTask = task;
+            logTask();
+            highlightSelection();
+        }
+
+        function renderCategories() {
+            let categoryDiv = document.getElementById("categories");
+            categoryDiv.innerHTML = "";
+            Object.keys(hierarchy[selectedEngagement]).forEach(category => {
+                let btn = document.createElement("button");
+                btn.innerText = category;
+                btn.onclick = function() { selectCategory(category); };
+                categoryDiv.appendChild(btn);
+            });
+            highlightSelection();
+        }
+
+        function renderTasks() {
+            let taskDiv = document.getElementById("tasks");
+            taskDiv.innerHTML = "";
+            hierarchy[selectedEngagement][selectedCategory].forEach(task => {
+                let btn = document.createElement("button");
+                btn.innerText = task;
+                btn.onclick = function() { selectTask(task); };
+                taskDiv.appendChild(btn);
+            });
+            highlightSelection();
+        }
+
+        function highlightSelection() {
+            document.querySelectorAll("#engagements button").forEach(btn => {
+                btn.classList.toggle("selected", btn.innerText === selectedEngagement);
+            });
+            document.querySelectorAll("#categories button").forEach(btn => {
+                btn.classList.toggle("selected", btn.innerText === selectedCategory);
+            });
+            document.querySelectorAll("#tasks button").forEach(btn => {
+                btn.classList.toggle("selected", btn.innerText === selectedTask);
+            });
+        }
+    </script>
+</head>
+<body>
+    <h2>Task Logger</h2>
+    <div id="engagements">
+        <button onclick="selectEngagement('Engagement 1')">Engagement 1</button>
+        <button onclick="selectEngagement('Engagement 2')">Engagement 2</button>
+        <button onclick="selectEngagement('Engagement 3')">Engagement 3</button>
+    </div>
+    <br>
+    <div id="categories"></div>
+    <br>
+    <div id="tasks"></div>
+    <br>
+    <button onclick="undoLastLog()">Undo Last Log</button>
+    <button onclick="downloadLogs()">Download Logs</button>
+    <h3>Log:</h3>
+    <div id="log"></div>
+</body>
+</html>
